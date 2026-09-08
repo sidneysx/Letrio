@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>termo</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button id="btn-help" class="icon-btn" aria-label="Como jogar" title="Como jogar">
+      <svg viewBox="0 0 24 24"><path d="M12 17.5a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2Zm.02-11.7c-2.1 0-3.4 1.14-3.9 2.55l1.68.7c.24-.6.7-1.4 2.14-1.4.98 0 1.75.53 1.75 1.36 0 .66-.4 1.03-1.14 1.5-.98.6-1.72 1.28-1.72 2.6v.3h1.8v-.2c0-.9.36-1.2 1.24-1.76.9-.57 1.72-1.28 1.72-2.5 0-1.87-1.6-3.15-3.57-3.15Z"/><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+    </button>
+
+    <h1 class="logo">termo</h1>
+
+    <div class="topbar-actions">
+      <button id="btn-stats" class="icon-btn" aria-label="Estatísticas" title="Estatísticas">
+        <svg viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>
+      </button>
+      <button id="btn-theme" class="icon-btn" aria-label="Tema" title="Alternar tema">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="game">
+    <div id="board" class="board" role="group" aria-label="Tabuleiro"></div>
+    <div id="keyboard" class="keyboard" role="group" aria-label="Teclado"></div>
+  </main>
+
+  <div id="toast-container" class="toast-container" aria-live="assertive"></div>
+
+  <!-- Help modal -->
+  <div id="modal-help" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="modal-close" data-close>&times;</button>
+      <h2 id="help-title">Como jogar</h2>
+      <p>Descubra a palavra certa em 6 tentativas. Depois de cada tentativa, as peças mudam de cor para mostrar o quão perto você está da solução.</p>
+
+      <div class="example-row">
+        <div class="tile small correct">T</div>
+        <div class="tile small">U</div>
+        <div class="tile small">R</div>
+        <div class="tile small">M</div>
+        <div class="tile small">A</div>
+      </div>
+      <p>A letra <strong class="tag correct">T</strong> faz parte da palavra e está na posição correta.</p>
+
+      <div class="example-row">
+        <div class="tile small">V</div>
+        <div class="tile small">I</div>
+        <div class="tile small present">O</div>
+        <div class="tile small">L</div>
+        <div class="tile small">A</div>
+      </div>
+      <p>A letra <strong class="tag present">O</strong> faz parte da palavra, mas em outra posição.</p>
+
+      <div class="example-row">
+        <div class="tile small">P</div>
+        <div class="tile small">U</div>
+        <div class="tile small">L</div>
+        <div class="tile small absent">G</div>
+        <div class="tile small">A</div>
+      </div>
+      <p>A letra <strong class="tag absent">G</strong> não faz parte da palavra.</p>
+
+      <ul class="rules-list">
+        <li>Os acentos são preenchidos automaticamente e não são considerados nas dicas.</li>
+        <li>As palavras podem ter letras repetidas.</li>
+        <li>Uma palavra nova aparece a cada dia.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Stats modal -->
+  <div id="modal-stats" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+      <button class="modal-close" data-close>&times;</button>
+      <h2 id="stats-title">Estatísticas</h2>
+
+      <div class="stats-grid">
+        <div class="stat"><span id="stat-played" class="stat-num">0</span><span class="stat-label">Jogos</span></div>
+        <div class="stat"><span id="stat-winrate" class="stat-num">0</span><span class="stat-label">Vitórias %</span></div>
+        <div class="stat"><span id="stat-streak" class="stat-num">0</span><span class="stat-label">Sequência</span></div>
+        <div class="stat"><span id="stat-maxstreak" class="stat-num">0</span><span class="stat-label">Melhor sequência</span></div>
+      </div>
+
+      <h3 class="dist-title">Distribuição de tentativas</h3>
+      <div id="distribution" class="distribution"></div>
+
+      <div id="next-word" class="next-word" hidden>
+        <p>Próxima palavra em</p>
+        <span id="countdown" class="countdown">--:--:--</span>
+        <button id="btn-share" class="share-btn">Compartilhar resultado</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
