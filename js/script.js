@@ -3,7 +3,7 @@
 
   const WORD_LENGTH = 5;
   const MAX_GUESSES = 6;
-  const STORAGE_STATE = "termoClone.state.v2";
+  const STORAGE_STATE = "termoClone.state.v3";
   const STORAGE_STATS = "termoClone.stats.v1";
   const STORAGE_THEME = "termoClone.theme.v1";
 
@@ -68,10 +68,22 @@
   let state = {
     target: "",
     guesses: [], // { display, statuses }
-    current: "",
+    current: [], // WORD_LENGTH slots, "" when empty
     gameOver: false,
     won: false,
   };
+
+  let cursor = 0; // index in state.current the next typed letter lands on
+
+  function firstEmptyIndex() {
+    const idx = state.current.indexOf("");
+    return idx === -1 ? WORD_LENGTH - 1 : idx;
+  }
+
+  function setCursor(i) {
+    cursor = Math.max(0, Math.min(i, WORD_LENGTH - 1));
+    renderCurrentRow();
+  }
 
   let stats = {
     played: 0,
@@ -141,6 +153,10 @@
         const tile = document.createElement("div");
         tile.className = "tile";
         tile.dataset.col = String(c);
+        tile.addEventListener("click", () => {
+          if (r !== state.guesses.length || state.gameOver || busy) return;
+          setCursor(c);
+        });
         row.appendChild(tile);
       }
       els.board.appendChild(row);
@@ -177,8 +193,10 @@
   }
 
   function renderCurrentRow() {
+    els.board.querySelectorAll(".tile.cursor").forEach((t) => t.classList.remove("cursor"));
+
     const r = state.guesses.length;
-    if (r >= MAX_GUESSES) return;
+    if (r >= MAX_GUESSES || state.gameOver) return;
     const row = getRowEl(r);
     if (!row) return;
     const tiles = row.querySelectorAll(".tile");
@@ -186,6 +204,7 @@
       const ch = state.current[i];
       tile.textContent = ch || "";
       tile.classList.toggle("filled", Boolean(ch));
+      tile.classList.toggle("cursor", i === cursor);
     });
   }
 
@@ -239,7 +258,8 @@
     const idx = randomIndex(words.indexOf(target));
     target = words[idx];
     targetNorm = normalize(target);
-    state = { target, guesses: [], current: "", gameOver: false, won: false };
+    state = { target, guesses: [], current: new Array(WORD_LENGTH).fill(""), gameOver: false, won: false };
+    cursor = 0;
     keyStatus.clear();
     saveState();
     buildBoard();
@@ -298,15 +318,19 @@
       return;
     }
     if (key === "BACK") {
-      state.current = state.current.slice(0, -1);
+      if (state.current[cursor]) {
+        state.current[cursor] = "";
+      } else if (cursor > 0) {
+        cursor -= 1;
+        state.current[cursor] = "";
+      }
       renderCurrentRow();
       return;
     }
     if (/^[A-Z]$/.test(key)) {
-      if (state.current.length < WORD_LENGTH) {
-        state.current += key;
-        renderCurrentRow();
-      }
+      state.current[cursor] = key;
+      if (cursor < WORD_LENGTH - 1) cursor += 1;
+      renderCurrentRow();
     }
   }
 
@@ -322,27 +346,30 @@
   }
 
   function submitGuess() {
-    if (state.current.length < WORD_LENGTH) {
+    if (state.current.some((ch) => !ch)) {
       showToast("Palavra incompleta");
       shakeCurrentRow();
       return;
     }
-    const guessNorm = normalize(state.current);
+    const word = state.current.join("");
+    const guessNorm = normalize(word);
     if (!validSet.has(guessNorm)) {
       showToast("Palavra não encontrada");
       shakeCurrentRow();
       return;
     }
 
-    const display = normalizedToWord.get(guessNorm) || state.current;
+    const display = normalizedToWord.get(guessNorm) || word;
     const statuses = evaluateGuess(guessNorm, targetNorm);
     const r = state.guesses.length;
 
+    els.board.querySelectorAll(".tile.cursor").forEach((t) => t.classList.remove("cursor"));
     busy = true;
     animateRowReveal(r, display, statuses, () => {
       state.guesses.push({ display, statuses });
       updateKeyStatuses(guessNorm, statuses);
-      state.current = "";
+      state.current = new Array(WORD_LENGTH).fill("");
+      cursor = 0;
       busy = false;
 
       const won = statuses.every((s) => s === "correct");
@@ -519,6 +546,16 @@
     document.addEventListener("keydown", (e) => {
       if (!els.modalHelp.hidden || !els.modalStats.hidden) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "ArrowLeft") {
+        if (state.gameOver || busy) return;
+        setCursor(cursor - 1);
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        if (state.gameOver || busy) return;
+        setCursor(cursor + 1);
+        return;
+      }
       const k = e.key.toUpperCase();
       if (k === "ENTER") handleKey("ENTER");
       else if (k === "BACKSPACE") handleKey("BACK");
@@ -551,9 +588,10 @@
     });
 
     loadState();
-    if (state.target && words.includes(state.target)) {
+    if (state.target && words.includes(state.target) && Array.isArray(state.current)) {
       target = state.target;
       targetNorm = normalize(target);
+      cursor = firstEmptyIndex();
       renderCompletedGuesses();
       state.guesses.forEach((g) => updateKeyStatuses(normalize(g.display), g.statuses));
       renderCurrentRow();
