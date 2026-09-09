@@ -1,6 +1,6 @@
 {
   "descricao": "Lista de palavras de 5 letras em portugues (Brasil), com acentuacao correta, para uso no jogo Termo",
-  "total": 991,
+  "total": 996,
   "palavras": [
     "ABAFA",
     "ABALO",
@@ -183,6 +183,7 @@
     "CALAR",
     "CALCA",
     "CALDA",
+    "CALEM",
     "CALHA",
     "CALMO",
     "CALOR",
@@ -378,6 +379,7 @@
     "FACAS",
     "FAIXA",
     "FALAR",
+    "FALEM",
     "FALHA",
     "FALSO",
     "FALTA",
@@ -716,6 +718,7 @@
     "PENSO",
     "PENTE",
     "PERDA",
+    "PERNA",
     "PERDE",
     "PERTO",
     "PESAR",

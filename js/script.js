@@ -784,11 +784,21 @@
     window.addEventListener("resize", scheduleFit);
     window.addEventListener("orientationchange", scheduleFit);
 
-    const res = await fetch("data/palavras.json");
-    const data = await res.json();
-    words = data.palavras;
+    const [answersRes, extraRes] = await Promise.all([
+      fetch("data/palavras.json"),
+      fetch("data/dicionario_extra.json"),
+    ]);
+    const answersData = await answersRes.json();
+    words = answersData.palavras; // only these can be picked as the answer
 
-    words.forEach((w) => {
+    let extraWords = [];
+    try {
+      const extraData = await extraRes.json();
+      extraWords = extraData.palavras || [];
+    } catch (e) {}
+
+    // both lists feed the accepted-guess dictionary; only `words` is used for targets
+    words.concat(extraWords).forEach((w) => {
       const n = normalize(w);
       if (!normalizedToWord.has(n)) normalizedToWord.set(n, w);
       validSet.add(n);
