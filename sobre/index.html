@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>sobre — letrio</title>
+<link rel="stylesheet" href="../css/style.css" />
+<style>
+  body {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .sobre {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 2.5rem 1.2rem 3rem;
+  }
+
+  .sobre-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+  }
+  .sobre-back:hover { color: var(--text); }
+  .sobre-back svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .sobre h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    text-transform: lowercase;
+    letter-spacing: 0.03em;
+    margin: 0 0 1.6rem;
+  }
+
+  .sobre p {
+    color: var(--text-dim);
+    line-height: 1.7;
+    font-size: 1.02rem;
+    margin: 0 0 1.1rem;
+  }
+
+  .sobre a {
+    color: var(--accent);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .sobre a:hover { text-decoration: underline; }
+
+  .sobre-section {
+    margin-top: 2.4rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .sobre-section h2 {
+    font-size: 1.15rem;
+    margin: 0 0 0.8rem;
+  }
+
+  .sobre-footer {
+    margin-top: 2.4rem;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="sobre">
+    <a class="sobre-back" href="../">
+      <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+      voltar pro jogo
+    </a>
+
+    <h1>oi, tudo bem?</h1>
+
+    <p>O <strong>letrio</strong> foi feito originalmente por, Sidney Sousa, inspirado no <a href="https://term.ooo" target="_blank" rel="noopener">Termo</a> — com tentativas ilimitadas.</p>
+
+
+    <p>Além do modo clássico, o letrio também tem os modos <strong>dueto</strong>, <strong>trio</strong> e <strong>quarteto</strong> — pra jogar com 2, 3 ou 4 palavras ao mesmo tempo, todas compartilhando as mesmas tentativas.</p>
+
+    <p>A lista de palavras usada no jogo foi baixada do <a href="https://github.com/fserb/pt-br" target="_blank" rel="noopener">léxico pt-br</a>, disponibilizado sob a licença MIT.</p>
+
+    <p>Você pode me seguir no <a href="https://x.com/sidnneysx" target="_blank" rel="noopener">X</a> e no <a href="https://github.com/sidneysx" target="_blank" rel="noopener">GitHub</a>.</p>
+
+    <div class="sobre-section">
+      <h2>Termos de privacidade</h2>
+      <p>O <strong>letrio</strong> não coleta nenhum dado pessoal. Todo o progresso e as estatísticas ficam salvos localmente no seu navegador (localStorage) — nada é enviado para nenhum servidor.</p>
+      <p>O <strong>letrio</strong> não usa cookies e não faz nenhum tipo de rastreamento.</p>
+    </div>
+
+    <div class="sobre-footer">letrio</div>
+  </div>
+
+  <script>
+    try {
+      var theme = localStorage.getItem("termoClone.theme.v1");
+      if (theme) document.documentElement.setAttribute("data-theme", theme);
+    } catch (e) {}
+  </script>
+</body>
+</html>

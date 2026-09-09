@@ -1,9 +1,10 @@
 {
-  "descricao": "Lista de palavras de 5 letras em portugues (Brasil), com acentuacao correta, para uso no jogo Termo",
-  "total": 997,
+  "descricao": "Lista de palavras de 5 letras em portugues (Brasil), com acentuacao correta, para uso no jogo Letrio",
+  "total": 998,
   "palavras": [
     "ABAFA",
     "MOLAS",
+    "LISOS",
     "ABALO",
     "ABANA",
     "ABATE",

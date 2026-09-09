@@ -4,12 +4,12 @@
   const WORD_LENGTH = 5;
 
   const MODES = {
-    termo:    { key: "termo",    boards: 1, guesses: 6, label: "termo" },
+    letrio:   { key: "letrio",   boards: 1, guesses: 6, label: "letrio" },
     dueto:    { key: "dueto",    boards: 2, guesses: 7, label: "dueto" },
     trio:     { key: "trio",     boards: 3, guesses: 8, label: "trio" },
     quarteto: { key: "quarteto", boards: 4, guesses: 9, label: "quarteto" },
   };
-  const GAME_MAX_WIDTH = { termo: 560, dueto: 760, trio: 980, quarteto: 1200 };
+  const GAME_MAX_WIDTH = { letrio: 560, dueto: 760, trio: 980, quarteto: 1200 };
 
   const STORAGE_STATE = "termoClone.state.v4"; // { [modeKey]: state }
   const STORAGE_STATS = "termoClone.stats.v2"; // { [modeKey]: stats }
@@ -76,8 +76,8 @@
 
   // ---------------- mode ----------------
 
-  let modeKey = "termo";
-  let mode = MODES.termo;
+  let modeKey = "letrio";
+  let mode = MODES.letrio;
 
   function defaultState(m) {
     return {
@@ -661,7 +661,7 @@
 
   function applyModeUI() {
     els.logo.textContent = mode.label;
-    document.title = mode.key === "termo" ? "termo" : `termo · ${mode.label}`;
+    document.title = mode.key === "letrio" ? "letrio" : `letrio · ${mode.label}`;
     document.documentElement.style.setProperty("--game-max-width", `${GAME_MAX_WIDTH[mode.key]}px`);
     updateHelpText();
     updateModeNavActive();

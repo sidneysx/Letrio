@@ -111,6 +111,7 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.15s ease;
 }
 .icon-btn:hover { background: var(--surface-2); }
