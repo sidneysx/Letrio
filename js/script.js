@@ -78,7 +78,7 @@
     wins: 0,
     currentStreak: 0,
     maxStreak: 0,
-    distribution: [0, 0, 0, 0, 0, 0],
+    distribution: new Array(MAX_GUESSES).fill(0),
   };
 
   const keyStatus = new Map(); // letter -> 'correct' | 'present' | 'absent'
@@ -189,16 +189,14 @@
     });
   }
 
-  function renderCompletedGuesses({ animate = false } = {}) {
+  function renderCompletedGuesses() {
     state.guesses.forEach((g, r) => {
       const row = getRowEl(r);
       if (!row) return;
       const tiles = row.querySelectorAll(".tile");
       tiles.forEach((tile, i) => {
         tile.textContent = g.display[i];
-        tile.classList.add("filled");
-        tile.classList.remove("correct", "present", "absent");
-        if (!animate) tile.classList.add(g.statuses[i]);
+        tile.classList.add("filled", g.statuses[i]);
       });
     });
   }
@@ -265,9 +263,9 @@
 
   // ---------------- evaluation ----------------
 
-  function evaluateGuess(guessNorm, targetNorm) {
+  function evaluateGuess(guessNorm, answerNorm) {
     const result = new Array(WORD_LENGTH).fill("absent");
-    const targetArr = targetNorm.split("");
+    const targetArr = answerNorm.split("");
     const guessArr = guessNorm.split("");
     const used = new Array(WORD_LENGTH).fill(false);
 
@@ -398,7 +396,7 @@
       stats.wins += 1;
       stats.currentStreak += 1;
       stats.maxStreak = Math.max(stats.maxStreak, stats.currentStreak);
-      const idx = Math.min(state.guesses.length, 6) - 1;
+      const idx = Math.min(state.guesses.length, MAX_GUESSES) - 1;
       stats.distribution[idx] = (stats.distribution[idx] || 0) + 1;
       bounceRow(state.guesses.length - 1);
       setTimeout(() => showToast(pickWinMessage(state.guesses.length)), 350);

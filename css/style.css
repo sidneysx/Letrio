@@ -1,3 +1,4 @@
+/* light is the default palette; data-theme="dark" below overrides it */
 :root {
   --bg: #f7f8fa;
   --surface: #ffffff;
@@ -23,26 +24,6 @@
 
   --tile-gap: 8px;
   --tile-size: 60px;
-}
-
-:root[data-theme="light"] {
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --text: #1a1c22;
-  --text-dim: #62666f;
-  --border: #dcdfe4;
-  --border-soft: #c6cad2;
-
-  --correct: #3aa870;
-  --correct-text: #ffffff;
-  --present: #dd9a2e;
-  --present-text: #ffffff;
-  --absent: #d3d6db;
-  --absent-text: #53565f;
-
-  --accent: #3b82f6;
-  --accent-text: #ffffff;
 }
 
 :root[data-theme="dark"] {
