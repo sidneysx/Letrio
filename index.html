@@ -15,6 +15,9 @@
     <h1 class="logo">termo</h1>
 
     <div class="topbar-actions">
+      <button id="btn-newgame" class="icon-btn" aria-label="Novo jogo" title="Jogar novamente">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></svg>
+      </button>
       <button id="btn-stats" class="icon-btn" aria-label="Estatísticas" title="Estatísticas">
         <svg viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>
       </button>
@@ -68,7 +71,7 @@
       <ul class="rules-list">
         <li>Os acentos são preenchidos automaticamente e não são considerados nas dicas.</li>
         <li>As palavras podem ter letras repetidas.</li>
-        <li>Uma palavra nova aparece a cada dia.</li>
+        <li>Você pode jogar quantas vezes quiser, sem limite de tempo.</li>
       </ul>
     </div>
   </div>
@@ -89,10 +92,9 @@
       <h3 class="dist-title">Distribuição de tentativas</h3>
       <div id="distribution" class="distribution"></div>
 
-      <div id="next-word" class="next-word" hidden>
-        <p>Próxima palavra em</p>
-        <span id="countdown" class="countdown">--:--:--</span>
-        <button id="btn-share" class="share-btn">Compartilhar resultado</button>
+      <div id="play-again" class="play-again">
+        <button id="btn-again" class="share-btn secondary" hidden>Jogar novamente</button>
+        <button id="btn-share" class="share-btn" hidden>Compartilhar resultado</button>
       </div>
     </div>
   </div>

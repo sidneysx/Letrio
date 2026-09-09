@@ -3,16 +3,18 @@
 
   const WORD_LENGTH = 5;
   const MAX_GUESSES = 6;
-  const EPOCH = new Date(2022, 0, 1); // day 0 reference, same spirit as the original Wordle
-  const STORAGE_STATE = "termoClone.state.v1";
+  const STORAGE_STATE = "termoClone.state.v2";
   const STORAGE_STATS = "termoClone.stats.v1";
   const STORAGE_THEME = "termoClone.theme.v1";
 
   const els = {
+    game: document.querySelector(".game"),
+    topbar: document.querySelector(".topbar"),
     board: document.getElementById("board"),
     keyboard: document.getElementById("keyboard"),
     toasts: document.getElementById("toast-container"),
     btnHelp: document.getElementById("btn-help"),
+    btnNewgame: document.getElementById("btn-newgame"),
     btnStats: document.getElementById("btn-stats"),
     btnTheme: document.getElementById("btn-theme"),
     modalHelp: document.getElementById("modal-help"),
@@ -22,8 +24,7 @@
     statStreak: document.getElementById("stat-streak"),
     statMaxstreak: document.getElementById("stat-maxstreak"),
     distribution: document.getElementById("distribution"),
-    nextWord: document.getElementById("next-word"),
-    countdown: document.getElementById("countdown"),
+    btnAgain: document.getElementById("btn-again"),
     btnShare: document.getElementById("btn-share"),
   };
 
@@ -47,17 +48,13 @@
     return str.toUpperCase().replace(ACCENT_RE, (ch) => ACCENT_MAP[ch] || ch);
   }
 
-  function dayIndex(wordCount) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const diffDays = Math.floor((today - EPOCH) / 86400000);
-    return ((diffDays % wordCount) + wordCount) % wordCount;
-  }
-
-  function msUntilNextWord() {
-    const now = new Date();
-    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    return next - now;
+  function randomIndex(excludeIndex) {
+    if (words.length <= 1) return 0;
+    let idx;
+    do {
+      idx = Math.floor(Math.random() * words.length);
+    } while (idx === excludeIndex);
+    return idx;
   }
 
   // ---------------- game state ----------------
@@ -67,10 +64,9 @@
   let validSet = new Set();
   let target = "";
   let targetNorm = "";
-  let todayIndex = 0;
 
   let state = {
-    dayIndex: -1,
+    target: "",
     guesses: [], // { display, statuses }
     current: "",
     gameOver: false,
@@ -105,7 +101,7 @@
       const raw = localStorage.getItem(STORAGE_STATE);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.dayIndex === todayIndex) state = parsed;
+        if (parsed && parsed.target) state = parsed;
       }
     } catch (e) {}
   }
@@ -149,6 +145,31 @@
       }
       els.board.appendChild(row);
     }
+  }
+
+  function fitBoard() {
+    const rootStyle = getComputedStyle(document.documentElement);
+    const tileGap = parseFloat(rootStyle.getPropertyValue("--tile-gap")) || 8;
+    const gameStyle = getComputedStyle(els.game);
+    const paddingX = parseFloat(gameStyle.paddingLeft) + parseFloat(gameStyle.paddingRight);
+    const paddingY = parseFloat(gameStyle.paddingTop) + parseFloat(gameStyle.paddingBottom);
+    const gap = parseFloat(gameStyle.rowGap) || 0;
+
+    const availableHeight =
+      window.innerHeight - els.topbar.offsetHeight - paddingY - gap - els.keyboard.offsetHeight;
+    const availableWidth = els.game.clientWidth - paddingX;
+
+    const fromHeight = (availableHeight - (MAX_GUESSES - 1) * tileGap) / MAX_GUESSES;
+    const fromWidth = (availableWidth - (WORD_LENGTH - 1) * tileGap) / WORD_LENGTH;
+
+    const tileSize = Math.max(22, Math.min(84, fromHeight, fromWidth));
+    document.documentElement.style.setProperty("--tile-size", `${tileSize}px`);
+  }
+
+  let fitRAF = null;
+  function scheduleFit() {
+    if (fitRAF) cancelAnimationFrame(fitRAF);
+    fitRAF = requestAnimationFrame(fitBoard);
   }
 
   function getRowEl(r) {
@@ -214,6 +235,18 @@
       const s = keyStatus.get(k);
       if (s) btn.classList.add(s);
     });
+  }
+
+  function startNewGame() {
+    const idx = randomIndex(words.indexOf(target));
+    target = words[idx];
+    targetNorm = normalize(target);
+    state = { target, guesses: [], current: "", gameOver: false, won: false };
+    keyStatus.clear();
+    saveState();
+    buildBoard();
+    refreshKeyboardColors();
+    renderCurrentRow();
   }
 
   const STATUS_RANK = { absent: 1, present: 2, correct: 3 };
@@ -404,26 +437,8 @@
       els.distribution.appendChild(row);
     });
 
-    if (state.gameOver) {
-      els.nextWord.hidden = false;
-      tickCountdown();
-    } else {
-      els.nextWord.hidden = true;
-    }
-  }
-
-  let countdownTimer = null;
-  function tickCountdown() {
-    clearInterval(countdownTimer);
-    const render = () => {
-      const ms = msUntilNextWord();
-      const h = String(Math.floor(ms / 3600000)).padStart(2, "0");
-      const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2, "0");
-      const s = String(Math.floor((ms % 60000) / 1000)).padStart(2, "0");
-      els.countdown.textContent = `${h}:${m}:${s}`;
-    };
-    render();
-    countdownTimer = setInterval(render, 1000);
+    els.btnAgain.hidden = false;
+    els.btnShare.hidden = !state.gameOver;
   }
 
   function buildShareText() {
@@ -457,9 +472,23 @@
     openModal(els.modalStats);
   }
 
+  function confirmDiscardIfNeeded() {
+    if (state.gameOver || state.guesses.length === 0) return true;
+    return window.confirm("Começar um novo jogo? Seu progresso atual será perdido.");
+  }
+
   function wireModals() {
     els.btnHelp.addEventListener("click", () => openModal(els.modalHelp));
     els.btnStats.addEventListener("click", openStats);
+    els.btnNewgame.addEventListener("click", () => {
+      if (!confirmDiscardIfNeeded()) return;
+      startNewGame();
+    });
+    els.btnAgain.addEventListener("click", () => {
+      if (!confirmDiscardIfNeeded()) return;
+      closeModal(els.modalStats);
+      startNewGame();
+    });
     document.querySelectorAll("[data-close]").forEach((btn) => {
       btn.addEventListener("click", (e) => closeModal(e.target.closest(".modal-overlay")));
     });
@@ -479,8 +508,8 @@
 
   function wireTheme() {
     els.btnTheme.addEventListener("click", () => {
-      const current = document.documentElement.getAttribute("data-theme");
-      const next = current === "light" ? "dark" : "light";
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      const next = current === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", next);
       try {
         localStorage.setItem(STORAGE_THEME, next);
@@ -509,6 +538,9 @@
     buildBoard();
     buildKeyboard();
     wirePhysicalKeyboard();
+    fitBoard();
+    window.addEventListener("resize", scheduleFit);
+    window.addEventListener("orientationchange", scheduleFit);
 
     const res = await fetch("palavras.json");
     const data = await res.json();
@@ -520,19 +552,16 @@
       validSet.add(n);
     });
 
-    todayIndex = dayIndex(words.length);
-    target = words[todayIndex];
-    targetNorm = normalize(target);
-
     loadState();
-    if (state.dayIndex !== todayIndex) {
-      state = { dayIndex: todayIndex, guesses: [], current: "", gameOver: false, won: false };
-      saveState();
+    if (state.target && words.includes(state.target)) {
+      target = state.target;
+      targetNorm = normalize(target);
+      renderCompletedGuesses();
+      state.guesses.forEach((g) => updateKeyStatuses(normalize(g.display), g.statuses));
+      renderCurrentRow();
+    } else {
+      startNewGame();
     }
-
-    renderCompletedGuesses();
-    state.guesses.forEach((g) => updateKeyStatuses(normalize(g.display), g.statuses));
-    renderCurrentRow();
 
     if (state.gameOver) {
       setTimeout(openStats, 300);
