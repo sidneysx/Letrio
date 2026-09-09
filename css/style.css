@@ -24,6 +24,8 @@
 
   --tile-gap: 8px;
   --tile-size: 60px;
+  --board-gap: 18px;
+  --game-max-width: 560px;
 }
 
 :root[data-theme="dark"] {
@@ -87,6 +89,12 @@ body {
   color: var(--accent);
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .topbar-actions {
   display: flex;
   gap: 0.4rem;
@@ -106,7 +114,36 @@ body {
   transition: background 0.15s ease;
 }
 .icon-btn:hover { background: var(--surface-2); }
-.icon-btn svg { width: 23px; height: 23px; fill: currentColor; }
+.icon-btn svg { width: 23px; height: 23px; fill: currentColor; transition: transform 0.15s ease; }
+.icon-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* ---------- mode nav ---------- */
+.mode-nav {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.mode-link {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  padding: 0.45rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mode-link:hover { background: var(--surface-2); color: var(--text); }
+.mode-link.active { background: var(--accent); color: var(--accent-text); }
 
 /* ---------- board ---------- */
 .game {
@@ -118,10 +155,20 @@ body {
   justify-content: space-between;
   padding: 1rem 0.6rem 0.6rem;
   gap: 1.2rem;
-  max-width: 560px;
+  max-width: var(--game-max-width);
   margin: 0 auto;
   width: 100%;
   overflow: hidden;
+}
+
+.boards {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--board-gap);
+  flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .board {
@@ -129,7 +176,12 @@ body {
   flex-direction: column;
   flex: 0 0 auto;
   gap: var(--tile-gap);
-  margin: 0 auto;
+  border-radius: 10px;
+  transition: box-shadow 0.2s ease;
+}
+
+.board.solved {
+  box-shadow: 0 0 0 2px var(--correct);
 }
 
 .board-row {

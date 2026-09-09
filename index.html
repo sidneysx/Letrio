@@ -8,11 +8,16 @@
 </head>
 <body>
   <header class="topbar">
-    <button id="btn-help" class="icon-btn" aria-label="Como jogar" title="Como jogar">
-      <svg viewBox="0 0 24 24"><path d="M12 17.5a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2Zm.02-11.7c-2.1 0-3.4 1.14-3.9 2.55l1.68.7c.24-.6.7-1.4 2.14-1.4.98 0 1.75.53 1.75 1.36 0 .66-.4 1.03-1.14 1.5-.98.6-1.72 1.28-1.72 2.6v.3h1.8v-.2c0-.9.36-1.2 1.24-1.76.9-.57 1.72-1.28 1.72-2.5 0-1.87-1.6-3.15-3.57-3.15Z"/><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-    </button>
+    <div class="topbar-left">
+      <button id="btn-modes" class="icon-btn" aria-label="Modos de jogo" title="Modos de jogo" aria-expanded="false">
+        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <button id="btn-help" class="icon-btn" aria-label="Como jogar" title="Como jogar">
+        <svg viewBox="0 0 24 24"><path d="M12 17.5a1.1 1.1 0 1 0 0-2.2 1.1 1.1 0 0 0 0 2.2Zm.02-11.7c-2.1 0-3.4 1.14-3.9 2.55l1.68.7c.24-.6.7-1.4 2.14-1.4.98 0 1.75.53 1.75 1.36 0 .66-.4 1.03-1.14 1.5-.98.6-1.72 1.28-1.72 2.6v.3h1.8v-.2c0-.9.36-1.2 1.24-1.76.9-.57 1.72-1.28 1.72-2.5 0-1.87-1.6-3.15-3.57-3.15Z"/><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      </button>
+    </div>
 
-    <h1 class="logo">termo</h1>
+    <h1 class="logo" id="logo">termo</h1>
 
     <div class="topbar-actions">
       <button id="btn-newgame" class="icon-btn" aria-label="Novo jogo" title="Jogar novamente">
@@ -27,8 +32,15 @@
     </div>
   </header>
 
+  <nav id="mode-nav" class="mode-nav" hidden>
+    <button class="mode-link" data-mode="termo">termo</button>
+    <button class="mode-link" data-mode="dueto">dueto</button>
+    <button class="mode-link" data-mode="trio">trio</button>
+    <button class="mode-link" data-mode="quarteto">quarteto</button>
+  </nav>
+
   <main class="game">
-    <div id="board" class="board" role="group" aria-label="Tabuleiro"></div>
+    <div id="boards" class="boards" role="group" aria-label="Tabuleiros"></div>
     <div id="keyboard" class="keyboard" role="group" aria-label="Teclado"></div>
   </main>
 
@@ -39,7 +51,8 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
       <button class="modal-close" data-close>&times;</button>
       <h2 id="help-title">Como jogar</h2>
-      <p>Descubra a palavra certa em 6 tentativas. Depois de cada tentativa, as peças mudam de cor para mostrar o quão perto você está da solução.</p>
+      <p id="help-intro">Descubra a palavra certa em 6 tentativas. Depois de cada tentativa, as peças mudam de cor para mostrar o quão perto você está da solução.</p>
+      <p id="help-multi" hidden></p>
 
       <div class="example-row">
         <div class="tile small correct">T</div>

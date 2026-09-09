@@ -2,23 +2,38 @@
   "use strict";
 
   const WORD_LENGTH = 5;
-  const MAX_GUESSES = 6;
-  const STORAGE_STATE = "termoClone.state.v3";
-  const STORAGE_STATS = "termoClone.stats.v1";
+
+  const MODES = {
+    termo:    { key: "termo",    boards: 1, guesses: 6, label: "termo" },
+    dueto:    { key: "dueto",    boards: 2, guesses: 7, label: "dueto" },
+    trio:     { key: "trio",     boards: 3, guesses: 8, label: "trio" },
+    quarteto: { key: "quarteto", boards: 4, guesses: 9, label: "quarteto" },
+  };
+  const GAME_MAX_WIDTH = { termo: 560, dueto: 760, trio: 980, quarteto: 1200 };
+
+  const STORAGE_STATE = "termoClone.state.v4"; // { [modeKey]: state }
+  const STORAGE_STATS = "termoClone.stats.v2"; // { [modeKey]: stats }
   const STORAGE_THEME = "termoClone.theme.v1";
+  const STORAGE_MODE = "termoClone.mode.v1";
 
   const els = {
     game: document.querySelector(".game"),
     topbar: document.querySelector(".topbar"),
-    board: document.getElementById("board"),
+    logo: document.getElementById("logo"),
+    modeNav: document.getElementById("mode-nav"),
+    boards: document.getElementById("boards"),
     keyboard: document.getElementById("keyboard"),
     toasts: document.getElementById("toast-container"),
+    btnModes: document.getElementById("btn-modes"),
     btnHelp: document.getElementById("btn-help"),
     btnNewgame: document.getElementById("btn-newgame"),
     btnStats: document.getElementById("btn-stats"),
     btnTheme: document.getElementById("btn-theme"),
     modalHelp: document.getElementById("modal-help"),
     modalStats: document.getElementById("modal-stats"),
+    helpIntro: document.getElementById("help-intro"),
+    helpMulti: document.getElementById("help-multi"),
+    statsTitle: document.getElementById("stats-title"),
     statPlayed: document.getElementById("stat-played"),
     statWinrate: document.getElementById("stat-winrate"),
     statStreak: document.getElementById("stat-streak"),
@@ -48,13 +63,43 @@
     return str.toUpperCase().replace(ACCENT_RE, (ch) => ACCENT_MAP[ch] || ch);
   }
 
-  function randomIndex(excludeIndex) {
-    if (words.length <= 1) return 0;
-    let idx;
-    do {
-      idx = Math.floor(Math.random() * words.length);
-    } while (idx === excludeIndex);
-    return idx;
+  function pickDistinctIndexes(n, excludeWords) {
+    const exclude = new Set(excludeWords || []);
+    const pool = words.map((_, i) => i).filter((i) => !exclude.has(words[i]));
+    const source = pool.length >= n ? pool : words.map((_, i) => i);
+    const chosen = new Set();
+    while (chosen.size < n && chosen.size < source.length) {
+      chosen.add(source[Math.floor(Math.random() * source.length)]);
+    }
+    return Array.from(chosen);
+  }
+
+  // ---------------- mode ----------------
+
+  let modeKey = "termo";
+  let mode = MODES.termo;
+
+  function defaultState(m) {
+    return {
+      modeKey: m.key,
+      targets: new Array(m.boards).fill(""),
+      boardGuesses: Array.from({ length: m.boards }, () => []),
+      solved: new Array(m.boards).fill(false),
+      round: 0,
+      current: new Array(WORD_LENGTH).fill(""),
+      gameOver: false,
+      won: false,
+    };
+  }
+
+  function defaultStats(m) {
+    return {
+      played: 0,
+      wins: 0,
+      currentStreak: 0,
+      maxStreak: 0,
+      distribution: new Array(m.guesses).fill(0),
+    };
   }
 
   // ---------------- game state ----------------
@@ -62,17 +107,8 @@
   let words = [];
   let normalizedToWord = new Map();
   let validSet = new Set();
-  let target = "";
-  let targetNorm = "";
 
-  let state = {
-    target: "",
-    guesses: [], // { display, statuses }
-    current: [], // WORD_LENGTH slots, "" when empty
-    gameOver: false,
-    won: false,
-  };
-
+  let state = defaultState(mode);
   let cursor = 0; // index in state.current the next typed letter lands on
 
   function firstEmptyIndex() {
@@ -85,42 +121,45 @@
     renderCurrentRow();
   }
 
-  let stats = {
-    played: 0,
-    wins: 0,
-    currentStreak: 0,
-    maxStreak: 0,
-    distribution: new Array(MAX_GUESSES).fill(0),
-  };
+  let stats = defaultStats(mode);
+  let allStates = {};
+  let allStats = {};
 
   const keyStatus = new Map(); // letter -> 'correct' | 'present' | 'absent'
 
-  function loadStats() {
+  function loadAllStats() {
     try {
       const raw = localStorage.getItem(STORAGE_STATS);
-      if (raw) stats = { ...stats, ...JSON.parse(raw) };
+      if (raw) allStats = JSON.parse(raw) || {};
     } catch (e) {}
+  }
+
+  function loadStatsForCurrentMode() {
+    const saved = allStats[modeKey];
+    stats =
+      saved && Array.isArray(saved.distribution) && saved.distribution.length === mode.guesses
+        ? saved
+        : defaultStats(mode);
   }
 
   function saveStats() {
+    allStats[modeKey] = stats;
     try {
-      localStorage.setItem(STORAGE_STATS, JSON.stringify(stats));
+      localStorage.setItem(STORAGE_STATS, JSON.stringify(allStats));
     } catch (e) {}
   }
 
-  function loadState() {
+  function loadAllStates() {
     try {
       const raw = localStorage.getItem(STORAGE_STATE);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.target) state = parsed;
-      }
+      if (raw) allStates = JSON.parse(raw) || {};
     } catch (e) {}
   }
 
   function saveState() {
+    allStates[modeKey] = state;
     try {
-      localStorage.setItem(STORAGE_STATE, JSON.stringify(state));
+      localStorage.setItem(STORAGE_STATE, JSON.stringify(allStates));
     } catch (e) {}
   }
 
@@ -143,42 +182,56 @@
 
   // ---------------- board ----------------
 
-  function buildBoard() {
-    els.board.innerHTML = "";
-    for (let r = 0; r < MAX_GUESSES; r++) {
-      const row = document.createElement("div");
-      row.className = "board-row";
-      row.dataset.row = String(r);
-      for (let c = 0; c < WORD_LENGTH; c++) {
-        const tile = document.createElement("div");
-        tile.className = "tile";
-        tile.dataset.col = String(c);
-        tile.addEventListener("click", () => {
-          if (r !== state.guesses.length || state.gameOver || busy) return;
-          setCursor(c);
-        });
-        row.appendChild(tile);
+  function buildBoards() {
+    els.boards.innerHTML = "";
+    for (let b = 0; b < mode.boards; b++) {
+      const boardEl = document.createElement("div");
+      boardEl.className = "board";
+      boardEl.dataset.board = String(b);
+      for (let r = 0; r < mode.guesses; r++) {
+        const row = document.createElement("div");
+        row.className = "board-row";
+        row.dataset.row = String(r);
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          tile.dataset.col = String(c);
+          tile.addEventListener("click", () => {
+            if (state.gameOver || busy) return;
+            if (state.solved[b]) return;
+            if (r !== state.round) return;
+            setCursor(c);
+          });
+          row.appendChild(tile);
+        }
+        boardEl.appendChild(row);
       }
-      els.board.appendChild(row);
+      els.boards.appendChild(boardEl);
     }
   }
 
   function fitBoard() {
     const rootStyle = getComputedStyle(document.documentElement);
     const tileGap = parseFloat(rootStyle.getPropertyValue("--tile-gap")) || 8;
+    const boardGap = parseFloat(rootStyle.getPropertyValue("--board-gap")) || 18;
     const gameStyle = getComputedStyle(els.game);
     const paddingX = parseFloat(gameStyle.paddingLeft) + parseFloat(gameStyle.paddingRight);
     const paddingY = parseFloat(gameStyle.paddingTop) + parseFloat(gameStyle.paddingBottom);
     const gap = parseFloat(gameStyle.rowGap) || 0;
+    const navHeight = els.modeNav.hidden ? 0 : els.modeNav.offsetHeight;
 
     const availableHeight =
-      window.innerHeight - els.topbar.offsetHeight - paddingY - gap - els.keyboard.offsetHeight;
+      window.innerHeight - els.topbar.offsetHeight - navHeight - paddingY - gap - els.keyboard.offsetHeight;
     const availableWidth = els.game.clientWidth - paddingX;
 
-    const fromHeight = (availableHeight - (MAX_GUESSES - 1) * tileGap) / MAX_GUESSES;
-    const fromWidth = (availableWidth - (WORD_LENGTH - 1) * tileGap) / WORD_LENGTH;
+    const rows = mode.guesses;
+    const boards = mode.boards;
 
-    const tileSize = Math.max(22, Math.min(84, fromHeight, fromWidth));
+    const fromHeight = (availableHeight - (rows - 1) * tileGap) / rows;
+    const fromWidth =
+      (availableWidth - (boards - 1) * boardGap - boards * (WORD_LENGTH - 1) * tileGap) / (boards * WORD_LENGTH);
+
+    const tileSize = Math.max(18, Math.min(84, fromHeight, fromWidth));
     document.documentElement.style.setProperty("--tile-size", `${tileSize}px`);
   }
 
@@ -188,36 +241,45 @@
     fitRAF = requestAnimationFrame(fitBoard);
   }
 
-  function getRowEl(r) {
-    return els.board.querySelector(`.board-row[data-row="${r}"]`);
+  function getRowEl(b, r) {
+    const boardEl = els.boards.querySelector(`.board[data-board="${b}"]`);
+    return boardEl && boardEl.querySelector(`.board-row[data-row="${r}"]`);
   }
 
   function renderCurrentRow() {
-    els.board.querySelectorAll(".tile.cursor").forEach((t) => t.classList.remove("cursor"));
+    els.boards.querySelectorAll(".tile.cursor").forEach((t) => t.classList.remove("cursor"));
+    if (state.gameOver || state.round >= mode.guesses) return;
 
-    const r = state.guesses.length;
-    if (r >= MAX_GUESSES || state.gameOver) return;
-    const row = getRowEl(r);
-    if (!row) return;
-    const tiles = row.querySelectorAll(".tile");
-    tiles.forEach((tile, i) => {
-      const ch = state.current[i];
-      tile.textContent = ch || "";
-      tile.classList.toggle("filled", Boolean(ch));
-      tile.classList.toggle("cursor", i === cursor);
-    });
+    for (let b = 0; b < mode.boards; b++) {
+      if (state.solved[b]) continue;
+      const row = getRowEl(b, state.round);
+      if (!row) continue;
+      const tiles = row.querySelectorAll(".tile");
+      tiles.forEach((tile, i) => {
+        const ch = state.current[i];
+        tile.textContent = ch || "";
+        tile.classList.toggle("filled", Boolean(ch));
+        tile.classList.toggle("cursor", i === cursor);
+      });
+    }
   }
 
   function renderCompletedGuesses() {
-    state.guesses.forEach((g, r) => {
-      const row = getRowEl(r);
-      if (!row) return;
-      const tiles = row.querySelectorAll(".tile");
-      tiles.forEach((tile, i) => {
-        tile.textContent = g.display[i];
-        tile.classList.add("filled", g.statuses[i]);
+    for (let b = 0; b < mode.boards; b++) {
+      state.boardGuesses[b].forEach((g, r) => {
+        const row = getRowEl(b, r);
+        if (!row) return;
+        const tiles = row.querySelectorAll(".tile");
+        tiles.forEach((tile, i) => {
+          tile.textContent = g.display[i];
+          tile.classList.add("filled", g.statuses[i]);
+        });
       });
-    });
+      if (state.solved[b]) {
+        const boardEl = els.boards.querySelector(`.board[data-board="${b}"]`);
+        if (boardEl) boardEl.classList.add("solved");
+      }
+    }
   }
 
   // ---------------- keyboard ----------------
@@ -255,14 +317,14 @@
   }
 
   function startNewGame() {
-    const idx = randomIndex(words.indexOf(target));
-    target = words[idx];
-    targetNorm = normalize(target);
-    state = { target, guesses: [], current: new Array(WORD_LENGTH).fill(""), gameOver: false, won: false };
+    const previousTargets = state.targets;
+    const indexes = pickDistinctIndexes(mode.boards, previousTargets);
+    state = defaultState(mode);
+    state.targets = indexes.map((i) => words[i]);
     cursor = 0;
     keyStatus.clear();
     saveState();
-    buildBoard();
+    buildBoards();
     refreshKeyboardColors();
     renderCurrentRow();
   }
@@ -335,14 +397,17 @@
   }
 
   function shakeCurrentRow() {
-    const row = getRowEl(state.guesses.length);
-    if (!row) return;
-    row.querySelectorAll(".tile").forEach((t) => {
-      t.classList.remove("shake");
-      // force reflow to restart animation
-      void t.offsetWidth;
-      t.classList.add("shake");
-    });
+    for (let b = 0; b < mode.boards; b++) {
+      if (state.solved[b]) continue;
+      const row = getRowEl(b, state.round);
+      if (!row) continue;
+      row.querySelectorAll(".tile").forEach((t) => {
+        t.classList.remove("shake");
+        // force reflow to restart animation
+        void t.offsetWidth;
+        t.classList.add("shake");
+      });
+    }
   }
 
   function submitGuess() {
@@ -360,32 +425,57 @@
     }
 
     const display = normalizedToWord.get(guessNorm) || word;
-    const statuses = evaluateGuess(guessNorm, targetNorm);
-    const r = state.guesses.length;
+    const r = state.round;
 
-    els.board.querySelectorAll(".tile.cursor").forEach((t) => t.classList.remove("cursor"));
+    els.boards.querySelectorAll(".tile.cursor").forEach((t) => t.classList.remove("cursor"));
     busy = true;
-    animateRowReveal(r, display, statuses, () => {
-      state.guesses.push({ display, statuses });
+
+    const justSolved = [];
+    for (let b = 0; b < mode.boards; b++) {
+      if (state.solved[b]) continue;
+      const statuses = evaluateGuess(guessNorm, normalize(state.targets[b]));
+      state.boardGuesses[b].push({ display, statuses });
       updateKeyStatuses(guessNorm, statuses);
+      animateRowReveal(b, r, display, statuses);
+      if (statuses.every((s) => s === "correct")) {
+        state.solved[b] = true;
+        justSolved.push(b);
+      }
+    }
+
+    const flipDuration = 500;
+    const stagger = 220;
+    const totalAnim = (WORD_LENGTH - 1) * stagger + flipDuration + 80;
+
+    setTimeout(() => {
+      state.round += 1;
       state.current = new Array(WORD_LENGTH).fill("");
       cursor = 0;
       busy = false;
 
-      const won = statuses.every((s) => s === "correct");
-      const outOfTries = state.guesses.length >= MAX_GUESSES;
+      justSolved.forEach((b) => {
+        bounceRow(b, r);
+        const boardEl = els.boards.querySelector(`.board[data-board="${b}"]`);
+        if (boardEl) boardEl.classList.add("solved");
+      });
 
-      if (won || outOfTries) {
+      const won = state.solved.every(Boolean);
+      const lost = !won && state.round >= mode.guesses;
+
+      if (won || lost) {
         state.gameOver = true;
         state.won = won;
         finishGame(won);
+      } else {
+        renderCurrentRow();
       }
       saveState();
-    });
+    }, totalAnim);
   }
 
-  function animateRowReveal(r, display, statuses, done) {
-    const row = getRowEl(r);
+  function animateRowReveal(b, r, display, statuses) {
+    const row = getRowEl(b, r);
+    if (!row) return;
     const tiles = row.querySelectorAll(".tile");
     const flipDuration = 500;
     const stagger = 220;
@@ -399,14 +489,10 @@
         }, flipDuration / 2);
       }, i * stagger);
     });
-
-    setTimeout(() => {
-      done();
-    }, (tiles.length - 1) * stagger + flipDuration + 80);
   }
 
-  function bounceRow(r) {
-    const row = getRowEl(r);
+  function bounceRow(b, r) {
+    const row = getRowEl(b, r);
     if (!row) return;
     row.querySelectorAll(".tile").forEach((tile, i) => {
       setTimeout(() => {
@@ -423,13 +509,14 @@
       stats.wins += 1;
       stats.currentStreak += 1;
       stats.maxStreak = Math.max(stats.maxStreak, stats.currentStreak);
-      const idx = Math.min(state.guesses.length, MAX_GUESSES) - 1;
+      const idx = Math.min(state.round, mode.guesses) - 1;
       stats.distribution[idx] = (stats.distribution[idx] || 0) + 1;
-      bounceRow(state.guesses.length - 1);
-      setTimeout(() => showToast(pickWinMessage(state.guesses.length)), 350);
+      setTimeout(() => showToast(pickWinMessage(state.round)), 350);
     } else {
       stats.currentStreak = 0;
-      setTimeout(() => showToast(`A palavra era ${target}`), 350);
+      const remaining = state.targets.filter((_, b) => !state.solved[b]);
+      const msg = mode.boards === 1 ? `A palavra era ${remaining[0]}` : `Palavras: ${remaining.join(", ")}`;
+      setTimeout(() => showToast(msg), 350);
     }
     saveStats();
     setTimeout(openStats, won ? 1600 : 1400);
@@ -441,6 +528,7 @@
   }
 
   function renderStats() {
+    els.statsTitle.textContent = `Estatísticas — ${mode.label}`;
     els.statPlayed.textContent = String(stats.played);
     const winrate = stats.played ? Math.round((stats.wins / stats.played) * 100) : 0;
     els.statWinrate.textContent = String(winrate);
@@ -450,7 +538,7 @@
     const max = Math.max(1, ...stats.distribution);
     els.distribution.innerHTML = "";
     stats.distribution.forEach((count, i) => {
-      const isCurrent = state.gameOver && state.won && state.guesses.length - 1 === i;
+      const isCurrent = state.gameOver && state.won && state.round - 1 === i;
       const row = document.createElement("div");
       row.className = "dist-row";
       const pct = Math.max(8, Math.round((count / max) * 100));
@@ -467,11 +555,18 @@
   }
 
   function buildShareText() {
-    const lines = state.guesses.map((g) =>
-      g.statuses.map((s) => (s === "correct" ? "🟩" : s === "present" ? "🟨" : "⬛")).join("")
-    );
-    const tries = state.won ? state.guesses.length : "X";
-    return `termo ${tries}/${MAX_GUESSES}\n\n${lines.join("\n")}`;
+    const emoji = (s) => (s === "correct" ? "🟩" : s === "present" ? "🟨" : "⬛");
+    const lines = [];
+    for (let r = 0; r < state.round; r++) {
+      const parts = [];
+      for (let b = 0; b < mode.boards; b++) {
+        const g = state.boardGuesses[b][r];
+        parts.push(g ? g.statuses.map(emoji).join("") : " ".repeat(WORD_LENGTH));
+      }
+      lines.push(parts.join("  "));
+    }
+    const triesLabel = state.won ? state.round : "X";
+    return `${mode.label} ${triesLabel}/${mode.guesses}\n\n${lines.join("\n")}`;
   }
 
   async function shareResult() {
@@ -497,13 +592,26 @@
     openModal(els.modalStats);
   }
 
+  function updateHelpText() {
+    const wordLabel = mode.boards > 1 ? "as palavras certas" : "a palavra certa";
+    els.helpIntro.textContent = `Descubra ${wordLabel} em ${mode.guesses} tentativas. Depois de cada tentativa, as peças mudam de cor para mostrar o quão perto você está da solução.`;
+    els.helpMulti.hidden = mode.boards <= 1;
+    if (!els.helpMulti.hidden) {
+      els.helpMulti.textContent = `Nesse modo você precisa descobrir ${mode.boards} palavras ao mesmo tempo: cada palavra que você digitar vale para todos os tabuleiros que ainda não foram resolvidos.`;
+    }
+  }
+
   function confirmDiscardIfNeeded() {
-    if (state.gameOver || state.guesses.length === 0) return true;
+    const inProgress = !state.gameOver && state.boardGuesses.some((g) => g.length > 0);
+    if (!inProgress) return true;
     return window.confirm("Começar um novo jogo? Seu progresso atual será perdido.");
   }
 
   function wireModals() {
-    els.btnHelp.addEventListener("click", () => openModal(els.modalHelp));
+    els.btnHelp.addEventListener("click", () => {
+      updateHelpText();
+      openModal(els.modalHelp);
+    });
     els.btnStats.addEventListener("click", openStats);
     els.btnNewgame.addEventListener("click", () => {
       if (!confirmDiscardIfNeeded()) return;
@@ -526,6 +634,7 @@
       if (e.key === "Escape") {
         closeModal(els.modalHelp);
         closeModal(els.modalStats);
+        closeModeNav();
       }
     });
     els.btnShare.addEventListener("click", shareResult);
@@ -542,9 +651,99 @@
     });
   }
 
+  // ---------------- mode switching ----------------
+
+  function updateModeNavActive() {
+    els.modeNav.querySelectorAll(".mode-link").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.mode === modeKey);
+    });
+  }
+
+  function applyModeUI() {
+    els.logo.textContent = mode.label;
+    document.title = mode.key === "termo" ? "termo" : `termo · ${mode.label}`;
+    document.documentElement.style.setProperty("--game-max-width", `${GAME_MAX_WIDTH[mode.key]}px`);
+    updateHelpText();
+    updateModeNavActive();
+  }
+
+  function loadOrStartGameForMode() {
+    const saved = allStates[modeKey];
+    const valid =
+      saved &&
+      Array.isArray(saved.targets) &&
+      saved.targets.length === mode.boards &&
+      saved.targets.every((t) => words.includes(t)) &&
+      Array.isArray(saved.current) &&
+      Array.isArray(saved.boardGuesses) &&
+      saved.boardGuesses.length === mode.boards;
+
+    keyStatus.clear();
+    buildBoards();
+
+    if (valid) {
+      state = saved;
+      cursor = firstEmptyIndex();
+      renderCompletedGuesses();
+      for (let b = 0; b < mode.boards; b++) {
+        state.boardGuesses[b].forEach((g) => updateKeyStatuses(normalize(g.display), g.statuses));
+      }
+      renderCurrentRow();
+      if (state.gameOver) setTimeout(openStats, 300);
+    } else {
+      startNewGame();
+    }
+  }
+
+  function toggleModeNav() {
+    const isOpen = !els.modeNav.hidden;
+    els.modeNav.hidden = isOpen;
+    els.btnModes.setAttribute("aria-expanded", String(!isOpen));
+    scheduleFit();
+  }
+
+  function closeModeNav() {
+    if (!els.modeNav.hidden) {
+      els.modeNav.hidden = true;
+      els.btnModes.setAttribute("aria-expanded", "false");
+      scheduleFit();
+    }
+  }
+
+  function switchMode(key) {
+    if (key === modeKey) {
+      closeModeNav();
+      return;
+    }
+    saveState();
+    modeKey = key;
+    mode = MODES[modeKey];
+    try {
+      localStorage.setItem(STORAGE_MODE, modeKey);
+    } catch (e) {}
+    loadStatsForCurrentMode();
+    applyModeUI();
+    loadOrStartGameForMode();
+    closeModeNav();
+    scheduleFit();
+  }
+
+  function wireModeNav() {
+    els.btnModes.addEventListener("click", toggleModeNav);
+    els.modeNav.querySelectorAll(".mode-link").forEach((btn) => {
+      btn.addEventListener("click", () => switchMode(btn.dataset.mode));
+    });
+    document.addEventListener("click", (e) => {
+      if (els.modeNav.hidden) return;
+      if (els.modeNav.contains(e.target) || els.btnModes.contains(e.target)) return;
+      closeModeNav();
+    });
+  }
+
   function wirePhysicalKeyboard() {
     document.addEventListener("keydown", (e) => {
       if (!els.modalHelp.hidden || !els.modalStats.hidden) return;
+      if (!els.modeNav.hidden) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "ArrowLeft") {
         if (state.gameOver || busy) return;
@@ -567,12 +766,20 @@
 
   async function init() {
     loadTheme();
-    loadStats();
+    loadAllStats();
+    loadAllStates();
+    try {
+      const savedMode = localStorage.getItem(STORAGE_MODE);
+      if (savedMode && MODES[savedMode]) modeKey = savedMode;
+    } catch (e) {}
+    mode = MODES[modeKey];
+
+    applyModeUI();
     wireModals();
+    wireModeNav();
     wireTheme();
-    buildBoard();
-    buildKeyboard();
     wirePhysicalKeyboard();
+    buildKeyboard();
     fitBoard();
     window.addEventListener("resize", scheduleFit);
     window.addEventListener("orientationchange", scheduleFit);
@@ -587,21 +794,8 @@
       validSet.add(n);
     });
 
-    loadState();
-    if (state.target && words.includes(state.target) && Array.isArray(state.current)) {
-      target = state.target;
-      targetNorm = normalize(target);
-      cursor = firstEmptyIndex();
-      renderCompletedGuesses();
-      state.guesses.forEach((g) => updateKeyStatuses(normalize(g.display), g.statuses));
-      renderCurrentRow();
-    } else {
-      startNewGame();
-    }
-
-    if (state.gameOver) {
-      setTimeout(openStats, 300);
-    }
+    loadStatsForCurrentMode();
+    loadOrStartGameForMode();
   }
 
   init();
