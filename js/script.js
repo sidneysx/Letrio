@@ -542,7 +542,7 @@
     window.addEventListener("resize", scheduleFit);
     window.addEventListener("orientationchange", scheduleFit);
 
-    const res = await fetch("palavras.json");
+    const res = await fetch("data/palavras.json");
     const data = await res.json();
     words = data.palavras;
 
