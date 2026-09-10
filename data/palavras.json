@@ -1,6 +1,6 @@
 {
   "descricao": "Lista de palavras de 5 letras em portugues (Brasil), com acentuacao correta, para uso no jogo Letrio",
-  "total": 996,
+  "total": 997,
   "palavras": [
     "ABAFA",
     "MOLAS",
@@ -646,6 +646,7 @@
     "MOURO",
     "MUDAR",
     "MUDAS",
+    "MUDOS",
     "MUITA",
     "MUITO",
     "MULAS",
